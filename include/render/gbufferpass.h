@@ -11,7 +11,7 @@
 
 namespace nevk
 {
-class RenderPass
+class GbufferPass
 {
 private:
     struct UniformBufferObject
@@ -33,10 +33,8 @@ private:
     static constexpr int MAX_FRAMES_IN_FLIGHT = 3;
 
     VkDevice mDevice;
-    VkPipeline mPipelineOpaque;
-    VkPipeline mPipelineTransparent;
-    VkPipelineLayout mPipelineLayoutOpaque;
-    VkPipelineLayout mPipelineLayoutTransparent;
+    VkPipeline mPipeline;
+    VkPipelineLayout mPipelineLayout;
     VkRenderPass mRenderPass;
     VkDescriptorSetLayout mDescriptorSetLayout;
 
@@ -78,10 +76,9 @@ private:
 
     std::vector<VkDescriptorSet> mDescriptorSets;
 
+    GBuffer* mGbuffer;
     std::vector<VkFramebuffer> mFrameBuffers;
-    VkFormat mFrameBufferFormat;
 
-    VkFormat mDepthBufferFormat;
     uint32_t mWidth, mHeight;
 
     static VkVertexInputBindingDescription getBindingDescription()
@@ -141,19 +138,9 @@ public:
 
     VkPipelineLayout createGraphicsPipelineLayout();
 
-    VkPipeline createGraphicsPipeline(VkShaderModule& vertShaderModule, VkShaderModule& fragShaderModule, VkPipelineLayout pipelineLayout, uint32_t width, uint32_t height, bool isTransparent);
+    VkPipeline createGraphicsPipeline(VkShaderModule& vertShaderModule, VkShaderModule& fragShaderModule, VkPipelineLayout pipelineLayout, uint32_t width, uint32_t height);
 
-    void createFrameBuffers(std::vector<VkImageView>& imageViews, VkImageView& depthImageView, uint32_t width, uint32_t height);
-
-    void setFrameBufferFormat(VkFormat format)
-    {
-        mFrameBufferFormat = format;
-    }
-
-    void setDepthBufferFormat(VkFormat format)
-    {
-        mDepthBufferFormat = format;
-    }
+    void createFrameBuffers(GBuffer& gbuffer);
 
     void setShadowImageView(VkImageView shadowImageView);
     void setTextureImageView(const std::vector<VkImageView>& textureImageView);
@@ -162,14 +149,14 @@ public:
     void setMaterialBuffer(VkBuffer materialBuffer);
     void setInstanceBuffer(VkBuffer instanceBuffer);
 
-    void init(VkDevice& device, bool enableValidation, const char* vsCode, uint32_t vsCodeSize, const char* psCode, uint32_t psCodeSize, VkDescriptorPool descpool, ResourceManager* resMngr, uint32_t width, uint32_t height)
+    void init(VkDevice& device, bool enableValidation, const char* vsCode, uint32_t vsCodeSize, const char* psCode, uint32_t psCodeSize, 
+        VkDescriptorPool descpool, ResourceManager* resMngr, GBuffer* gbuffer)
     {
         mEnableValidation = enableValidation;
         mDevice = device;
         mResMngr = resMngr;
         mDescriptorPool = descpool;
-        mWidth = width;
-        mHeight = height;
+        mGbuffer = gbuffer;
         mVS = createShaderModule(vsCode, vsCodeSize);
         mPS = createShaderModule(psCode, psCodeSize);
         createUniformBuffers();
@@ -177,20 +164,18 @@ public:
         createRenderPass();
         createDescriptorSetLayout();
         createDescriptorSets(mDescriptorPool);
-        mPipelineLayoutOpaque = createGraphicsPipelineLayout();
-        mPipelineLayoutTransparent = createGraphicsPipelineLayout();
-        mPipelineOpaque = createGraphicsPipeline(mVS, mPS, mPipelineLayoutOpaque, width, height, false);
-        mPipelineTransparent = createGraphicsPipeline(mVS, mPS, mPipelineLayoutTransparent, width, height, true);
+        mPipelineLayout = createGraphicsPipelineLayout();
+        mPipeline = createGraphicsPipeline(mVS, mPS, mPipelineLayout, mGbuffer->width, mGbuffer->height);
     }
 
-    void onResize(std::vector<VkImageView>& imageViews, VkImageView& depthImageView, uint32_t width, uint32_t height);
+    void onResize(GBuffer* gbuffer);
 
     void onDestroy();
 
     void updateUniformBuffer(uint32_t currentImage, const glm::float4x4& lightSpaceMatrix, Scene& scene, uint32_t cameraIndex);
 
-    RenderPass(/* args */);
-    ~RenderPass();
+    GbufferPass(/* args */);
+    ~GbufferPass();
     void record(VkCommandBuffer& cmd, VkBuffer vertexBuffer, VkBuffer indexBuffer, nevk::Scene& scene, uint32_t width, uint32_t height, uint32_t imageIndex, uint32_t cameraIndex);
 };
 } // namespace nevk

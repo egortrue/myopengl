@@ -169,7 +169,6 @@ VkImageView nevk::TextureManager::createImageView(VkImage image, VkFormat format
     {
         throw std::runtime_error("failed to create texture image view!");
     }
-
     return imageView;
 }
 
